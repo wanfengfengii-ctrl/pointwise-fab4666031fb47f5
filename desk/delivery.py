@@ -31,8 +31,9 @@ class LoadReceipt:
 def make_envelope(order: DispatchOrder, frame: Frame) -> LoadEnvelope:
     if frame.frame_id != order.frame_id:
         raise ValueError('frame does not match dispatch')
+    screen_id = order.target_screen_id or order.screen_id
     return LoadEnvelope(
-        order.dispatch_id, order.session_id, order.position, order.screen_id,
+        order.dispatch_id, order.session_id, order.position, screen_id,
         frame.frame_id, frame.revision_id, frame.viewport.width, frame.viewport.height, frame.pixels,
     )
 

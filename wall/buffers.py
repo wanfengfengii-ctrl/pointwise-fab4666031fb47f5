@@ -32,7 +32,7 @@ class BufferStore:
                 screen_id TEXT NOT NULL,
                 frame_id INTEGER NOT NULL REFERENCES frames,
                 revision_id INTEGER NOT NULL REFERENCES art_revisions,
-                FOREIGN KEY (session_id, screen_id) REFERENCES placements (session_id, screen_id)
+                FOREIGN KEY (session_id, screen_id) REFERENCES screen_devices (session_id, screen_id)
             )
         ''')
         db.execute('''
@@ -42,7 +42,7 @@ class BufferStore:
                 front_dispatch_id INTEGER REFERENCES load_receipts,
                 standby_dispatch_id INTEGER REFERENCES load_receipts,
                 PRIMARY KEY (session_id, screen_id),
-                FOREIGN KEY (session_id, screen_id) REFERENCES placements (session_id, screen_id)
+                FOREIGN KEY (session_id, screen_id) REFERENCES screen_devices (session_id, screen_id)
             )
         ''')
 
@@ -51,6 +51,16 @@ class BufferStore:
             INSERT INTO screen_buffers (session_id, screen_id) VALUES (?, ?)
             ON CONFLICT (session_id, screen_id) DO NOTHING
         ''', (session_id, screen_id))
+
+    def set_slots(self, session_id: str, screen_id: str,
+                  front: LoadedFrame | None, standby: LoadedFrame | None) -> None:
+        cursor = self.db.execute('''
+            UPDATE screen_buffers SET front_dispatch_id = ?, standby_dispatch_id = ?
+            WHERE session_id = ? AND screen_id = ?
+        ''', (None if front is None else front.dispatch_id,
+              None if standby is None else standby.dispatch_id, session_id, screen_id))
+        if cursor.rowcount != 1:
+            raise RuntimeError('configured screen has no buffer')
 
     def get_buffer(self, session_id: str, screen_id: str) -> ScreenBuffer:
         row = self.db.execute('''

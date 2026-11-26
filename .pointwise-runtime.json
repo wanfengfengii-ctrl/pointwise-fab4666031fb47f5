@@ -5,5 +5,5 @@
   "start": ["sh", "-c", "[ \"$1\" = 127.0.0.1 ] || exit 2\nexec python3 -B -m desk.server --db gallery.sqlite3 --port \"$2\"", "gallery", "${POINTWISE_HOST}", "${POINTWISE_PORT}"],
   "readiness_path": "/sessions/gallery-day",
   "verify": ["python3", "-B", "check_project.py"],
-  "demo": ["python3", "-B", "-m", "samples.workday"]
+  "demo": ["python3", "-B", "-m", "samples.demo"]
 }

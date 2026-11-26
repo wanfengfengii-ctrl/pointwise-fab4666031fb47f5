@@ -5,6 +5,7 @@ from dataclasses import asdict
 from composition.sheets import SheetStore
 from desk.delivery import LoadReceipt
 from desk.placements import PlacementStore
+from desk.replacements import current_screen
 from desk.session import SessionStore, is_label
 from wall.buffers import BufferStore
 from wall.ingress import DamagedLoad, WrongScreen, receive_load
@@ -44,11 +45,12 @@ def handle_front(db: sqlite3.Connection, session_id: str, position: str) -> tupl
     placement = PlacementStore(db).get_placement(session_id, position)
     if placement is None:
         return 404, {'error': 'unknown screen position'}
-    front = BufferStore(db).get_buffer(session_id, placement.screen_id).front
+    screen_id = current_screen(db, session_id, position) or placement.screen_id
+    front = BufferStore(db).get_buffer(session_id, screen_id).front
     picture = None
     if front is not None:
         frame = SheetStore(db).get_frame(front.frame_id)
         if frame is None:
             raise RuntimeError('front has no fixed frame')
         picture = {**frame.picture(), 'dispatch_id': front.dispatch_id}
-    return 200, {'position': position, 'screen_id': placement.screen_id, 'front': picture}
+    return 200, {'position': position, 'screen_id': screen_id, 'front': picture}

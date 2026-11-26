@@ -29,6 +29,19 @@ class PlacementStore:
                 UNIQUE (session_id, ordinal)
             )
         ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS screen_devices (
+                session_id TEXT NOT NULL REFERENCES sessions,
+                screen_id TEXT NOT NULL,
+                PRIMARY KEY (session_id, screen_id)
+            )
+        ''')
+
+    def ensure_device(self, session_id: str, screen_id: str) -> None:
+        self.db.execute('''
+            INSERT INTO screen_devices (session_id, screen_id) VALUES (?, ?)
+            ON CONFLICT (session_id, screen_id) DO NOTHING
+        ''', (session_id, screen_id))
 
     def ensure_placement(self, placement: Placement) -> None:
         self.db.execute('''

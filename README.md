@@ -37,4 +37,4 @@ python3 -B -m samples.workday
 
 ## 核验
 
-完整套件从 `tests` 发现。`tests/test_preparation.py` 检查逐像素裁切及坏件拒绝。`tests/test_playout.py` 通过实际 HTTP 送达，检查独立槽、补确认及保护既有备槽。`tests/test_shown_history.py` 核对原拍重领、出处和重开。`tests/test_startup.py` 验证初始化回滚与重启。`tests/test_workday.py` 验证拍点异常回滚和展次隔离。`build_application` 可接收 `send_load` 和 `send_receipt` 回调，供本地端口分别暂扣交件或回包。测试通过同一 HTTP 入口送件和推进拍号。
+完整套件从 `tests` 发现。`tests/test_preparation.py` 检查逐像素裁切及坏件拒绝。`tests/test_playout.py` 通过实际 HTTP 送达，检查独立槽、补确认及保护既有备槽。`tests/test_shown_history.py` 核对原拍重领、出处和重开。`tests/test_startup.py` 验证初始化回滚与重启。`tests/test_workday.py` 验证拍点异常回滚和展次隔离。`tests/test_replacement.py` 覆盖单屏换机的登记、启用承接、旧单续送与重开；演练见 `REPLACEMENT.md`。`build_application` 可接收 `send_load` 和 `send_receipt` 回调，供本地端口分别暂扣交件或回包。测试通过同一 HTTP 入口送件和推进拍号。

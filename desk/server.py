@@ -16,6 +16,8 @@ from desk.bootstrap import initialize_database
 from desk.delivery import LoadEnvelope, LoadReceipt, acknowledge_load
 from desk.dispatch import DispatchStore
 from desk.http import handle_dispatch, handle_get_dispatch, handle_session
+from desk.replacements import ReplacementStore
+from desk.replacements_http import handle_get_replacement, handle_register_replacement
 from desk.session import SessionStore
 from records.http import handle_get_history
 from wall.buffers import BufferStore
@@ -75,6 +77,10 @@ class Application:
                     return handle_dispatch(DispatchStore(db), body, self.send_load)
                 case 'GET', ['dispatches', number] if (dispatch_id := _identity(number)) is not None:
                     return handle_get_dispatch(DispatchStore(db), dispatch_id)
+                case 'POST', ['screen-replacements']:
+                    return handle_register_replacement(ReplacementStore(db), body)
+                case 'GET', ['screen-replacements', number] if (replacement_id := _identity(number)) is not None:
+                    return handle_get_replacement(ReplacementStore(db), replacement_id)
                 case 'POST', ['screens', screen_id, 'loads']:
                     return handle_load(db, screen_id, body, self.send_receipt)
                 case 'POST', ['pulses']:

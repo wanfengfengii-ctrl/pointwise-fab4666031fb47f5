@@ -6,6 +6,7 @@ from artwork.catalog import ArtCatalog
 from composition.sheets import SheetStore
 from desk.dispatch import DispatchStore
 from desk.placements import Placement, PlacementStore
+from desk.replacements import ReplacementStore
 from desk.session import Session, SessionStore, is_label
 from records.recording import ShownStore
 from wall.buffers import BufferStore
@@ -40,6 +41,7 @@ def seed_session(db: sqlite3.Connection, document: object) -> None:
     for item in placements:
         store.ensure_placement(item)
         installed = store.get_placement(session_id, item.position)
+        store.ensure_device(session_id, installed.screen_id)
         buffers.ensure_screen(session_id, installed.screen_id)
 
 
@@ -47,8 +49,17 @@ def initialize_database(db: sqlite3.Connection, seed_path: Path) -> None:
     with db:
         db.execute('BEGIN IMMEDIATE')
         for owner in (ArtCatalog, SheetStore, SessionStore, PlacementStore, DispatchStore,
-                      BufferStore, PulseStore, ShownStore):
+                      BufferStore, PulseStore, ShownStore, ReplacementStore):
             owner.install_schema(db)
+        db.execute('''
+            INSERT INTO screen_devices (session_id, screen_id)
+            SELECT session_id, screen_id FROM placements
+            WHERE NOT EXISTS (
+                SELECT 1 FROM screen_devices
+                WHERE screen_devices.session_id = placements.session_id
+                  AND screen_devices.screen_id = placements.screen_id
+            )
+        ''')
         db.execute('''
             CREATE TABLE IF NOT EXISTS initialization (
                 complete INTEGER PRIMARY KEY CHECK (complete = 1)

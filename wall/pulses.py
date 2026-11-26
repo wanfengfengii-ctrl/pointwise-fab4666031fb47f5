@@ -2,7 +2,9 @@ import json
 import sqlite3
 from dataclasses import asdict, dataclass
 
+from desk.dispatch import DispatchStore
 from desk.placements import PlacementStore
+from desk.replacements import ReplacementStore, current_screen
 from desk.session import SessionStore
 from records.recording import ShownRecord, ShownStore
 from wall.buffers import BufferStore
@@ -58,6 +60,29 @@ class PulseStore:
         )
 
 
+def _activate_replacements(db: sqlite3.Connection, session_id: str, pulse: int) -> set[str]:
+    """Hand the former device's held pictures to each due spare device."""
+    replacements = ReplacementStore(db)
+    placements = PlacementStore(db)
+    buffers = BufferStore(db)
+    activated = set()
+    for replacement in replacements.due(session_id, pulse):
+        placement = placements.get_placement(session_id, replacement.position)
+        if placement is None:
+            raise RuntimeError('replacement position is missing')
+        former = placement.screen_id
+        held = buffers.get_buffer(session_id, former)
+        placements.ensure_device(session_id, replacement.replacement_screen_id)
+        buffers.ensure_screen(session_id, replacement.replacement_screen_id)
+        buffers.set_slots(session_id, replacement.replacement_screen_id, held.front, held.standby)
+        buffers.set_slots(session_id, former, None, None)
+        DispatchStore(db).retarget_position(session_id, replacement.position,
+                                            replacement.replacement_screen_id)
+        replacements.mark_activated(replacement.replacement_id, pulse)
+        activated.add(replacement.position)
+    return activated
+
+
 def process_pulse(db: sqlite3.Connection, session_id: str, pulse: int) -> PulseResult:
     with db:
         db.execute('BEGIN IMMEDIATE')
@@ -70,18 +95,20 @@ def process_pulse(db: sqlite3.Connection, session_id: str, pulse: int) -> PulseR
         high_water = pulses.get_high_water(session_id)
         if high_water is not None and pulse < high_water:
             raise StalePulse('unseen pulse is older than the latest processed pulse')
+        activated = _activate_replacements(db, session_id, pulse)
         placements = PlacementStore(db).list_placements(session_id)
         buffers = BufferStore(db)
         selections = []
         for placement in placements:
-            standby = buffers.get_buffer(session_id, placement.screen_id).standby
+            screen_id = current_screen(db, session_id, placement.position)
+            standby = buffers.get_buffer(session_id, screen_id).standby
             if standby is not None:
-                selections.append(SelectedSlot(placement.screen_id, standby.dispatch_id))
+                selections.append(SelectedSlot(screen_id, standby.dispatch_id))
         adopted = latch_selected(buffers, session_id, selections)
         records = ShownStore(db)
         screens, shown = [], []
         for placement in placements:
-            screen_id = placement.screen_id
+            screen_id = current_screen(db, session_id, placement.position)
             front = buffers.get_buffer(session_id, screen_id).front
             screens.append({
                 'position': placement.position,
@@ -89,6 +116,8 @@ def process_pulse(db: sqlite3.Connection, session_id: str, pulse: int) -> PulseR
                 'frame_id': front.frame_id if front is not None else None,
             })
             picked = adopted.get(screen_id)
+            if picked is None and placement.position in activated:
+                picked = front
             if picked is not None:
                 record = ShownRecord(session_id, pulse, placement.position, screen_id,
                                      picked.dispatch_id, picked.frame_id, picked.revision_id)

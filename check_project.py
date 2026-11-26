@@ -1,9 +1,9 @@
-"""Run this project's full unittest suite from the repository root."""
+"""Run this project's full unittest suite and the replacement drill from the repository root."""
 import sys
 import unittest
 
 
-def main():
+def _run_suite() -> bool:
     suite = unittest.defaultTestLoader.discover('tests', top_level_dir='.')
     if suite.countTestCases():
         result = unittest.TextTestRunner(verbosity=2).run(suite)
@@ -23,7 +23,22 @@ def main():
           f'expected_failures={len(result.expectedFailures)} '
           f'unexpected_successes={len(result.unexpectedSuccesses)} '
           f'result={"PASS" if successful else "FAIL"}')
-    return 0 if successful else 1
+    return successful
+
+
+def _run_replacement_drill() -> bool:
+    from samples.replacement_drill import run_all
+    try:
+        run_all()
+    except AssertionError as error:
+        print(f'REPLACEMENT DRILL FAIL {error}', file=sys.stderr)
+        return False
+    print('REPLACEMENT DRILL PASS')
+    return True
+
+
+def main():
+    return 0 if (_run_suite() and _run_replacement_drill()) else 1
 
 
 if __name__ == '__main__':

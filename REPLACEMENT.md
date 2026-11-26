@@ -36,6 +36,10 @@
 
 `samples.replacement_setup.prepare(case)` 通过现有测试端口备好三幅画、9 拍回执、B 的待回确认和仍在途的 C 交件。`python3 -B -m samples.replacement_setup` 可重跑换机前的接件和发拍行为。
 
-用同一输入登记第10拍换机。C 仍在途时，左屏第9拍查到 `panel-L` 的 A，第10拍查到 `panel-spare` 的 B。把 C 的旧件送给 `panel-L` 应得 409。按原请求续送 C 后补交 B 的原回包，第11拍应由 `panel-spare` 显示原单 C，B 补确认不改槽。另一次演练让 C 在启用拍之前先到甲，第10拍由乙显示 C，原装载确认仍归甲。空备时可直接从第9拍跳到第12拍，换机记录的实际启用拍是12，乙在第12拍显示沿用的 A。重开服务后查换机、原单、实显和原拍，固定画面及出处照旧。
+`python3 -B -m samples.replacement_drill` 用真实 HTTP 端口跑三段演练，各自临时库与动态端口，末行输出经断言核对的 `POINTWISE_SCENARIO` JSON：
 
-保留 `python3 -B check_project.py` 的原回归。使用 `.pointwise-runtime.json` 登记服务启动及换机核验、业务演示。清单用版本 1 的 API 运行方式，准备步骤是参数数组列表，可以为空。启动、核验、演示各为一个命令参数数组。服务仅监听 `127.0.0.1`，就绪检查沿用展次查询。核验失败时返回非零退出码。
+1. `replacement-boundary`：同一输入登记第10拍换机。C 仍在途时，左屏第9拍查到 `panel-L` 的 A，第10拍查到 `panel-spare` 的 B。把 C 的旧件送给 `panel-L` 得 409。按原请求续送 C 到乙后补交 B 的原回包，第11拍由 `panel-spare` 显示原单 C，B 补确认不改槽。随后重开服务，复查换机记录、原派单号与其 `screen_id`、布置、实显与出处，并复投第9、10拍核对原结果。`deliveries` 记下拍界前发给甲的 A、B 和拍界后重发到乙的 C，`visible_front_by_pulse` 记下第10、11拍的实际前画。
+2. `replacement-skip`：空备时直接从第9拍跳到第12拍，换机记录的实际启用拍是12，乙在第12拍显示沿用的 A。
+3. `replacement-early`：C 在启用拍之前先到甲，第10拍由乙显示 C，原装载确认仍归甲。
+
+保留 `python3 -B check_project.py` 的原回归；该入口先跑完整套件，再跑同一段换机演练，任一步失败返回非零。使用 `.pointwise-runtime.json` 登记服务启动及换机核验、业务演示。清单用版本 1 的 API 运行方式，准备步骤是参数数组列表，可以为空。启动、核验、演示各为一个命令参数数组。服务仅监听 `127.0.0.1`，就绪检查沿用展次查询。核验失败时返回非零退出码。

@@ -1,5 +1,5 @@
 import sqlite3
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from artwork.pixels import PixelFormatError, freeze_pixels
 from composition.sheets import SheetStore
@@ -14,6 +14,21 @@ class DamagedLoad(ValueError):
 
 class WrongScreen(ValueError):
     pass
+
+
+def _matches(incoming: dict, expected: dict) -> bool:
+    return incoming.keys() == expected.keys() and all(
+        type(incoming[key]) is type(value) and incoming[key] == value
+        for key, value in expected.items()
+    )
+
+
+def _store(buffers: BufferStore, order, frame, screen_id: str) -> LoadReceipt:
+    receipt = LoadReceipt(order.dispatch_id, order.session_id, screen_id,
+                          frame.frame_id, frame.revision_id)
+    buffers.save_load_receipt(receipt)
+    buffers.set_standby(receipt)
+    return receipt
 
 
 def receive_load(db: sqlite3.Connection, screen_id: str, payload: object) -> LoadReceipt:
@@ -35,19 +50,19 @@ def receive_load(db: sqlite3.Connection, screen_id: str, payload: object) -> Loa
         frame = SheetStore(db).get_frame(order.frame_id)
         if frame is None:
             raise RuntimeError('dispatch frame is missing')
-        expected = asdict(make_envelope(order, frame))
-        if incoming.keys() != expected.keys() or any(
-            type(incoming[key]) is not type(value) or incoming[key] != value
-            for key, value in expected.items()
-        ):
-            raise DamagedLoad('load differs from its fixed dispatch or picture')
-        if screen_id != order.screen_id:
-            raise WrongScreen('load was addressed to a different screen')
         buffers = BufferStore(db)
         previous = buffers.get_load_receipt(dispatch_id)
-        if previous is not None:
-            return previous
-        receipt = LoadReceipt(dispatch_id, order.session_id, screen_id, frame.frame_id, frame.revision_id)
-        buffers.save_load_receipt(receipt)
-        buffers.set_standby(receipt)
-        return receipt
+        target = order.target_screen_id or order.screen_id
+        if _matches(incoming, asdict(make_envelope(order, frame))):
+            if screen_id != target:
+                raise WrongScreen('load was addressed to a different screen')
+            if previous is not None:
+                return previous
+            return _store(buffers, order, frame, screen_id)
+        if target != order.screen_id and _matches(
+            incoming, asdict(make_envelope(replace(order, target_screen_id=order.screen_id), frame))
+        ):
+            if previous is not None and screen_id == previous.screen_id:
+                return previous
+            raise WrongScreen('load belongs to the former screen after replacement')
+        raise DamagedLoad('load differs from its fixed dispatch or picture')

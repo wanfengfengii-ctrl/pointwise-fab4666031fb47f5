@@ -5,6 +5,7 @@ from composition.sheets import SheetStore
 from desk.delivery import LoadEnvelope, deliver_order
 from desk.dispatch import DispatchConflict, DispatchStore, DispatchTargetMissing
 from desk.placements import PlacementStore
+from desk.replacements import current_screen
 from desk.session import SessionStore, is_label
 
 
@@ -35,7 +36,7 @@ def handle_get_dispatch(store: DispatchStore, dispatch_id: int) -> tuple[int, di
     order = store.get_dispatch(dispatch_id)
     if order is None:
         return 404, {'error': 'unknown dispatch'}
-    return 200, asdict(order)
+    return 200, order.record()
 
 
 def handle_session(sessions: SessionStore, session_id: str) -> tuple[int, dict]:
@@ -43,4 +44,8 @@ def handle_session(sessions: SessionStore, session_id: str) -> tuple[int, dict]:
     if session is None:
         return 404, {'error': 'unknown session'}
     placements = PlacementStore(sessions.db).list_placements(session_id)
-    return 200, {**asdict(session), 'placements': [asdict(item) for item in placements]}
+    return 200, {**asdict(session), 'placements': [
+        {**asdict(item),
+         'screen_id': current_screen(sessions.db, session_id, item.position) or item.screen_id}
+        for item in placements
+    ]}
