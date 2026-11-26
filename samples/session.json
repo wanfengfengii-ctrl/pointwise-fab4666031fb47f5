@@ -1,0 +1,8 @@
+{
+  "session_id": "gallery-day",
+  "name": "市民科技馆开放日",
+  "placements": [
+    {"position": "left", "screen_id": "panel-L", "name": "左屏"},
+    {"position": "right", "screen_id": "panel-R", "name": "右屏"}
+  ]
+}
